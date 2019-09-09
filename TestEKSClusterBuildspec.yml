@@ -1,0 +1,37 @@
+version: 0.2  
+  
+# REQUIRED ENVIRONMENT VARIABLES  
+# EKSClusterName                   - Existing EKS Cluster Name  
+# CloudformationServiceRole        - Existing Cloud Formation Service Role
+ 
+phases: 
+ 
+  install: 
+    runtime-versions: 
+        docker: 18 
+    commands:      
+      - apt-get update && apt-get -y install jq python3-pip python3-dev && pip3 install --upgrade awscli 
+      - curl -sS -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/aws-iam-authenticator 
+      - curl -sS -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/kubectl 
+      - chmod +x ./kubectl ./aws-iam-authenticator 
+      - mkdir -p $HOME/bin && cp ./aws-iam-authenticator /usr/bin/aws-iam-authenticator && export PATH=$HOME/bin:$PATH 
+      - mkdir -p $HOME/bin && cp ./kubectl /usr/bin/kubectl && export PATH=$HOME/bin:$PATH 
+      - ls -ltr /usr/bin/aws-iam-authenticator 
+      - ls -ltr /usr/bin/kubectl 
+      - echo $PATH 
+      - kubectl version --short --client 
+      - aws-iam-authenticator help
+  pre_build:  
+    commands:           
+      - echo ********Pre-Build started on******** `date`  
+      - aws eks update-kubeconfig --name $EKSClusterName --role-arn $CloudformationServiceRole 
+      - kubectl config view 
+      - aws-iam-authenticator token -i $EKSClusterName 
+      - kubectl get svc 	  
+  build:  
+    commands:  
+      - kubectl get services 
+      - kubectl get services -o wide 
+      - kubectl describe svc guestbook 
+      - kubectl get nodes 
+      - kubectl get pods 	

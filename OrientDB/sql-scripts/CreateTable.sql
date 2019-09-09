@@ -1,0 +1,1 @@
+CREATE DATABASE PLOCAL:/opt/orientdb/databses/demo

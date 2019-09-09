@@ -1,0 +1,8 @@
+FROM tomcat
+
+
+WORKDIR /usr/local/tomcat/webapps
+
+COPY ./Tomcat/HelloWorld.war HelloWorld.war
+
+EXPOSE 8080

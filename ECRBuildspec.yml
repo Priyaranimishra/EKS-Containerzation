@@ -1,0 +1,51 @@
+version: 0.2  
+  
+# REQUIRED ENVIRONMENT VARIABLES  
+# AWS_KEY                   - AWS Access Key ID  
+# AWS_SEC                   - AWS Secret Access Key  
+# AWS_REG                   - AWS Default Region     (e.g. us-west-2)  
+# AWS_OUT                   - AWS Output Format      (e.g. json)  
+# AWS_PROF                  - AWS Profile name       (e.g. central-account)  
+# IMAGE_REPO_NAME_OrientDB     - Name of the OrientDB image repo (e.g. mycontainer_orientdb)  
+# IMAGE_TAG_OrientDB           - Tag for the image      (e.g. latest)  
+# IMAGE_REPO_NAME_Tomcat    - Name of the image repo (e.g. my-webapp)  
+# IMAGE_TAG_Tomcat          - Tag for the image      (e.g. latest)  
+# AWS_ACCOUNT_ID            - Remote AWS account id  (e.g. 555555555555)  
+  
+#pre_build:  
+#commands:  
+#- printf "${AWS_KEY}\n${AWS_SEC}\n${AWS_REG}\n${AWS_OUT}\n" | aws configure --profile ${AWS_PROF}  
+#- $(aws ecr get-login --profile ${AWS_PROF})  
+  
+  
+phases: 
+ 
+  install: 
+    runtime-versions: 
+        docker: 18 
+    commands:      
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2& 
+      - timeout 15 sh -c "until docker info; do echo .; sleep 1; done" 
+      - docker version 
+      - apt-get update && apt-get -y install jq python3-pip python3-dev && pip3 install --upgrade awscli 
+
+  pre_build:  
+    commands:           
+      - echo ********Pre-Build started on******** `date`  
+      - $(aws ecr get-login --no-include-email --region $AWS_REG)  
+      - echo $IMAGE_REPO_NAME_OrientDB:$IMAGE_TAG_OrientDB $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REG.amazonaws.com/$IMAGE_REPO_NAME_OrientDB:$IMAGE_TAG_OrientDB  
+      - echo $IMAGE_REPO_NAME_Tomcat:$IMAGE_TAG_Tomcat $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REG.amazonaws.com/$IMAGE_REPO_NAME_Tomcat:$IMAGE_TAG_Tomcat 
+    
+  build:  
+    commands:  
+      - echo Build started on `date`  
+      - echo Building the Docker images...    
+      - docker build -t $IMAGE_REPO_NAME_OrientDB -f OrientDBDockerfile .  
+      - docker build -t $IMAGE_REPO_NAME_Tomcat -f TomcatDockerfile .  
+      - docker tag $IMAGE_REPO_NAME_OrientDB:$IMAGE_TAG_OrientDB $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REG.amazonaws.com/$IMAGE_REPO_NAME_OrientDB:$IMAGE_TAG_OrientDB    
+      - docker tag $IMAGE_REPO_NAME_Tomcat:$IMAGE_TAG_Tomcat $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REG.amazonaws.com/$IMAGE_REPO_NAME_Tomcat:$IMAGE_TAG_Tomcat 
+  post_build:  
+    commands:  
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REG.amazonaws.com/$IMAGE_REPO_NAME_Tomcat:$IMAGE_TAG_Tomcat  
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REG.amazonaws.com/$IMAGE_REPO_NAME_OrientDB:$IMAGE_TAG_OrientDB 
+ 
